@@ -22,6 +22,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool isLoading = true;
   bool isFetched = false;
 
+  List<dynamic> _listeners = [];
+
   @override
   void initState() {
     super.initState();
@@ -29,18 +31,22 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       getData();
     });
-    DB.emitter.on('updated', context, _onDBUpdated);
+    _listeners.add(DB.emitter.on('updated', context, _onDBUpdated));
   }
 
   @override
   void dispose() {
+    for (var listener in _listeners) {
+      DB.emitter.off(listener);
+    }
     super.dispose();
-    // _animationController.dispose();
   }
 
   _onDBUpdated(Event ev, Object? obj) {
     getData();
-    setState(() {});
+    if (!DB.isEmpty()) {
+      DB.getAll();
+    }
   }
 
   getData() {
@@ -60,9 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
           var uuid = generateUUID();
           try {
             final item = await createPinnedItemTypeWebsite(uuid, url);
-            setState(() {
-              DB.add(item);
-            });
+            DB.add(item);
           } catch (e) {}
         }
         setState(() {
@@ -220,12 +224,85 @@ class _HomeScreenState extends State<HomeScreen> {
                             shrinkWrap: true,
                             itemCount: DB.getAll().length,
                             itemBuilder: (context, index) {
-                              return Container(
-                                margin: const EdgeInsets.only(
-                                  bottom: 20,
-                                ),
-                                child: CardItem(
-                                  item: DB.getAll()[index],
+                              final item = DB.getAll()[index];
+                              return GestureDetector(
+                                onLongPress: () {
+                                  showCupertinoModalPopup(
+                                    context: context,
+                                    builder: (context) {
+                                      return CupertinoActionSheet(
+                                        title: const Text('Menu'),
+                                        actions: [
+                                          CupertinoActionSheetAction(
+                                            child: const Text('Edit'),
+                                            onPressed: () async {
+                                              await Navigator.push(context,
+                                                  CupertinoPageRoute(
+                                                      builder: (context) {
+                                                return CreateScreen(
+                                                  editMode: true,
+                                                  item: item,
+                                                );
+                                              }));
+                                              Navigator.pop(context);
+                                            },
+                                          ),
+                                          CupertinoActionSheetAction(
+                                            isDestructiveAction: true,
+                                            child: const Text('Delete'),
+                                            onPressed: () async {
+                                              // show alert confirm
+                                              await showCupertinoDialog(
+                                                context: context,
+                                                builder: (context) {
+                                                  return CupertinoAlertDialog(
+                                                    title: const Text(
+                                                      'Delete Item',
+                                                    ),
+                                                    content: const Text(
+                                                      'Are you sure want to delete this item?',
+                                                    ),
+                                                    actions: [
+                                                      CupertinoDialogAction(
+                                                        isDestructiveAction:
+                                                            true,
+                                                        child: const Text(
+                                                          'Delete',
+                                                        ),
+                                                        onPressed: () {
+                                                          DB.remove(item.id);
+                                                          Navigator.pop(
+                                                              context);
+                                                        },
+                                                      ),
+                                                      CupertinoDialogAction(
+                                                        child: const Text(
+                                                          'Cancel',
+                                                        ),
+                                                        onPressed: () {
+                                                          Navigator.pop(
+                                                              context);
+                                                        },
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
+                                              );
+                                              Navigator.pop(context);
+                                            },
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                },
+                                child: Container(
+                                  margin: const EdgeInsets.only(
+                                    bottom: 20,
+                                  ),
+                                  child: CardItem(
+                                    item: DB.getAll()[index],
+                                  ),
                                 ),
                               );
                             },

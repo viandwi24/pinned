@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:pinned/components/button.dart';
 import 'package:pinned/constant.dart';
+import 'package:pinned/models/pinned_item.dart';
 import 'package:pinned/utils/create_pinned_items.dart';
 import 'package:pinned/utils/db.dart';
 import 'package:pinned/utils/generate_uuid.dart';
@@ -53,7 +54,10 @@ class _FormTextInputState extends State<FormTextInput> {
 }
 
 class CreateScreen extends StatefulWidget {
-  const CreateScreen({super.key});
+  const CreateScreen({super.key, this.editMode = false, this.item});
+
+  final bool editMode;
+  final PinnedItem? item;
 
   @override
   State<CreateScreen> createState() => _CreateScreenState();
@@ -102,6 +106,26 @@ class _CreateScreenState extends State<CreateScreen> {
       }
     }
     return canSave;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.editMode && widget.item != null) {
+      _onEditInit(widget.item as PinnedItem);
+    }
+  }
+
+  _onEditInit(PinnedItem item) {
+    if (item.type == PinnedItemType.anime) {
+      _selectedType = 'anime';
+      _getController('animeTitle').text = item.title;
+      print(item);
+    } else if (item.type == PinnedItemType.website) {
+      _selectedType = 'website';
+      _getController('webUrl').text =
+          (item.attribute as PinnedItemAttributeWebsite).url;
+    }
   }
 
   _buildMainData(BuildContext context) {
@@ -229,35 +253,54 @@ class _CreateScreenState extends State<CreateScreen> {
 
   _onSaving(BuildContext context) async {
     await Future.delayed(Duration(seconds: 1));
-    if (_selectedType == 'website') {
-      var url = _getController('webUrl').text;
-      var uuid = generateUUID();
-      try {
-        final item = await createPinnedItemTypeWebsite(uuid, url);
-        setState(() {
-          DB.add(item);
-        });
-      } catch (e) {}
-    } else if (_selectedType == 'anime') {
-      var title = _getController('animeTitle').text;
-      var uuid = generateUUID();
-      try {
-        print('saving anime');
-        print(_tmpData);
-        var data = jsonDecode(_tmpData);
-        if (data is Map) {
-          print('data is map');
-          final item = await createPinnedItemTypeAnime(
-              uuid, data as Map<String, dynamic>);
-          print('item created : ${item.toJson().toString()}');
-          setState(() {
-            DB.add(item);
-          });
+
+    try {
+      var makeEdit = false;
+      if (_selectedType == 'website') {
+        if (widget.editMode) {
+          final item = widget.item as PinnedItem;
+          final attr = item.attribute as PinnedItemAttributeWebsite;
+          if (attr.url != _getController('webUrl').text) {
+            makeEdit = true;
+          }
         }
-      } catch (e) {
-        print('error saving anime');
-        print(e);
+        if (makeEdit) {
+          var url = _getController('webUrl').text;
+          var uuid = generateUUID();
+          final item = await createPinnedItemTypeWebsite(uuid, url);
+          DB.add(item);
+        } else {
+          var url = _getController('webUrl').text;
+          var id = widget.item?.id ?? '';
+          final item = await createPinnedItemTypeWebsite(id, url);
+          DB.update(id, item);
+        }
+      } else if (_selectedType == 'anime') {
+        if (widget.editMode) {
+          final item = widget.item as PinnedItem;
+          final attr = item.attribute as PinnedItemAttributeAnime;
+          if (attr.title != _getController('animeTitle').text) {
+            makeEdit = true;
+          }
+        }
+        if (!makeEdit) {
+          var title = _getController('animeTitle').text;
+          var uuid = generateUUID();
+          var data = jsonDecode(_tmpData);
+          if (data is Map) {
+            final item = await createPinnedItemTypeAnime(
+                uuid, data as Map<String, dynamic>);
+            DB.add(item);
+          }
+        } else {
+          var data = jsonDecode(_tmpData) as Map<String, dynamic>;
+          var id = widget.item?.id ?? '';
+          final item = await createPinnedItemTypeAnime(id, data);
+          DB.update(id, item);
+        }
       }
+    } catch (e) {
+      print(e);
     }
   }
 
@@ -303,7 +346,7 @@ class _CreateScreenState extends State<CreateScreen> {
                   ),
                   Container(
                     child: Text(
-                      'New item',
+                      widget.editMode ? 'Edit Item' : 'New item',
                       style: Theme.of(context).textTheme.headline2?.merge(
                             const TextStyle(
                               // height: .2,
@@ -312,37 +355,40 @@ class _CreateScreenState extends State<CreateScreen> {
                           ),
                     ),
                   ),
-                  Container(
-                    margin: const EdgeInsets.only(top: 20, bottom: 14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Type Data'),
-                        DropdownButton(
-                          value: _selectedType,
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'website',
-                              child: Text('Website'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'anime',
-                              child: Text('Anime'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'wattpad',
-                              child: Text('Wattpad'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedType = value as String;
-                            });
-                          },
-                        ),
-                      ],
-                    ),
+                  SizedBox(
+                    height: 20,
                   ),
+                  if (!widget.editMode)
+                    Container(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Type Data'),
+                          DropdownButton(
+                            value: _selectedType,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'website',
+                                child: Text('Website'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'anime',
+                                child: Text('Anime'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'wattpad',
+                                child: Text('Wattpad'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedType = value as String;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
                   _buildAttributesBuilder(context),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
