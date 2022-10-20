@@ -44,6 +44,14 @@ Future<PinnedItem> createPinnedItemTypeWebsite(String id, String url) async {
   );
 }
 
+PinnedItem updatePinnedItemTypeWebsite(PinnedItem item) {
+  var attribute = item.attribute as PinnedItemAttributeWebsite;
+  item.title = attribute.title;
+  item.description = attribute.description;
+  item.imageUrl = attribute.imageUrl;
+  return item;
+}
+
 Future<PinnedItem> createPinnedItemTypeAnime(
     String id, Map<String, dynamic> data) async {
   final animeTitle =
@@ -65,4 +73,29 @@ Future<PinnedItem> createPinnedItemTypeAnime(
       synopsis: animeSynopsis,
     ),
   );
+}
+
+Future<PinnedItem> createPinnedItemTypeNotes(String id, String title,
+    String description, String content, String topics) async {
+  return PinnedItem(
+    id: id,
+    title: title,
+    description: description,
+    imageUrl: "",
+    type: PinnedItemType.notes,
+    color: randomColor(),
+    category: topics,
+    attribute: PinnedItemAttributeNotes(
+        content: content,
+        title: title,
+        description: description,
+        topics: topics),
+  );
+}
+
+Future<PinnedItem> updatePinnedItemTypeNotes(PinnedItem item) async {
+  var attribute = item.attribute as PinnedItemAttributeNotes;
+  item.title = attribute.title;
+  item.description = attribute.description;
+  return item;
 }

@@ -35,6 +35,37 @@ class _CardItemState extends State<CardItem> {
     return title;
   }
 
+  _getBuildThumbnail(String url) {
+    if (!imageUrlError) {
+      return Expanded(
+        flex: 4,
+        // show full cover image from imageUrl
+        child: Container(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.network(
+              url,
+              fit: BoxFit.fitWidth,
+              errorBuilder: (BuildContext ctx, Object ex, StackTrace? st) {
+                Future.delayed(Duration.zero, () async {
+                  setState(() {
+                    imageUrlError = true;
+                  });
+                });
+                return Container(
+                  width: 100,
+                  height: 100,
+                  color: Colors.grey,
+                );
+              },
+            ),
+          ),
+        ),
+      );
+    }
+    return SizedBox();
+  }
+
   buildTypeWebsite(BuildContext context) {
     final website = widget.item.attribute as PinnedItemAttributeWebsite;
     return Row(
@@ -78,42 +109,18 @@ class _CardItemState extends State<CardItem> {
                         ),
                       ),
                 ),
+                const CardItemLabel(label: 'Web'),
               ],
             ),
           ),
         ),
-        if (!imageUrlError)
-          Expanded(
-            flex: 4,
-            // show full cover image from imageUrl
-            child: Container(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.network(
-                  website.imageUrl,
-                  fit: BoxFit.fitHeight,
-                  errorBuilder: (BuildContext ctx, Object ex, StackTrace? st) {
-                    Future.delayed(Duration.zero, () async {
-                      setState(() {
-                        imageUrlError = true;
-                      });
-                    });
-                    return Container(
-                      width: 100,
-                      height: 100,
-                      color: Colors.grey,
-                    );
-                  },
-                ),
-              ),
-            ),
-          ),
+        _getBuildThumbnail(website.imageUrl)!,
       ],
     );
   }
 
   buildTypeAnime(BuildContext context) {
-    final website = widget.item.attribute as PinnedItemAttributeAnime;
+    final anime = widget.item.attribute as PinnedItemAttributeAnime;
     return Row(
       children: [
         Expanded(
@@ -146,7 +153,7 @@ class _CardItemState extends State<CardItem> {
                     ),
                   ),
                 Text(
-                  website.url,
+                  anime.url,
                   style: Theme.of(context).textTheme.bodyText1?.merge(
                         TextStyle(
                           overflow: TextOverflow.ellipsis,
@@ -155,36 +162,12 @@ class _CardItemState extends State<CardItem> {
                         ),
                       ),
                 ),
+                const CardItemLabel(label: 'Anime'),
               ],
             ),
           ),
         ),
-        if (!imageUrlError)
-          Expanded(
-            flex: 4,
-            // show full cover image from imageUrl
-            child: Container(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.network(
-                  website.imageUrl,
-                  fit: BoxFit.fitHeight,
-                  errorBuilder: (BuildContext ctx, Object ex, StackTrace? st) {
-                    Future.delayed(Duration.zero, () async {
-                      setState(() {
-                        imageUrlError = true;
-                      });
-                    });
-                    return Container(
-                      width: 100,
-                      height: 100,
-                      color: Colors.grey,
-                    );
-                  },
-                ),
-              ),
-            ),
-          ),
+        _getBuildThumbnail(anime.imageUrl)!,
       ],
     );
   }
@@ -216,6 +199,11 @@ class _CardItemState extends State<CardItem> {
             return buildTypeAnime(context);
           }
 
+          dynamic type;
+          if (widget.item.type == PinnedItemType.notes) {
+            type = 'Notes';
+          }
+
           // defaults
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,9 +224,37 @@ class _CardItemState extends State<CardItem> {
                       ),
                     ),
               ),
+              if (type != null) CardItemLabel(label: type as String),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class CardItemLabel extends StatelessWidget {
+  const CardItemLabel({super.key, required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: EdgeInsets.only(top: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        color: Colors.white,
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.headline1?.merge(
+              TextStyle(
+                fontSize: 12,
+                color: Colors.black.withOpacity(.7),
+              ),
+            ),
       ),
     );
   }
